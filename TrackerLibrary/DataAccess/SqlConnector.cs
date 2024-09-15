@@ -78,6 +78,63 @@ namespace TrackerLibrary.DataAccess
             }
         }
 
+        public List<TeamModel> GetTeams()
+        {
+            List<TeamModel> teams = new List<TeamModel>();
+
+            // First, get all teams
+            using (SqlConnection connection = new SqlConnection(GlobalConfig.CnnString("Tournaments")))
+            {
+                using (SqlCommand command = new SqlCommand("dbo.spTeam_GetAll", connection))
+                {
+                    command.CommandType = CommandType.StoredProcedure;
+                    connection.Open();
+
+                    SqlDataReader reader = command.ExecuteReader();
+                    while (reader.Read())
+                    {
+                        teams.Add(new TeamModel()
+                        {
+                            Id = Convert.ToInt32(reader["Id"]),
+                            TeamName = reader["TeamName"].ToString()
+                        });
+                    }
+                }
+            }
+
+            // For each team, get its members
+            foreach (TeamModel team in teams)
+            {
+                using (SqlConnection connection = new SqlConnection(GlobalConfig.CnnString("Tournaments")))
+                {
+                    using (SqlCommand command = new SqlCommand("dbo.spTeamMembers_GetByTeam", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@TeamId", team.Id);
+
+                        connection.Open();
+                        SqlDataReader reader = command.ExecuteReader();
+
+                        List<PersonModel> teamMembers = new List<PersonModel>();
+                        while (reader.Read())
+                        {
+                            PersonModel person = new PersonModel
+                            {
+                                Id = (int)reader["Id"],
+                                FirstName = reader["FirstName"].ToString(),
+                                LastName = reader["LastName"].ToString(),
+                                EmailAddress = reader["EmailAddress"].ToString(),
+                                CellPhoneNumber = reader["CellPhoneNumber"].ToString()
+                            };
+                            teamMembers.Add(person);
+                        }
+                        team.TeamMembers = teamMembers;
+                    }
+                }
+            }
+
+            return teams;
+        }
 
         public List<PersonModel> GetPersons()
         {
